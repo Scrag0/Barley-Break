@@ -107,21 +107,29 @@ namespace Barley_Break
         {
             ClearTopScores();
 
-            var Players = data.Split('|');
-            int countPlayers = Players.Length;
+            var Fields = data.Split('|');
+            int countFields = Fields.Length;
 
-            if (countPlayers <= 0) return;
+            if (countFields <= 0) return;
 
-            for (int i = 0; i < countPlayers; i++)
+            for (int i = 0; i < countFields; i++)
             {
-                try
+                var split = Fields[i].Split('$');
+                if (split.Length == 1) continue;
+                string Field = split[0];
+                string playerData = split[1];
+
+                if (Field == GameField.StartNumbers)
                 {
-                    if (string.IsNullOrEmpty(Players[i].Split('$')[1])) continue;
-                    Print(Players[i]);
-                }
-                catch
-                {
-                    continue;
+                    try
+                    {
+                        if (string.IsNullOrEmpty(playerData)) continue;
+                        Print(playerData.Split('~')[0] + ". Moves:" + playerData.Split('~')[1] + " Time:" + playerData.Split('~')[2]);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
                 }
             }
         }

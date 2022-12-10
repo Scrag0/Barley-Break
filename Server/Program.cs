@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -29,7 +30,7 @@ namespace Program
                     tcpListener.Start(); // запускає сервер
                     Console.WriteLine("The server is running. Waiting for connection...");
 
-                    Dictionary<string, List<string>> GameHistory = new Dictionary<string, List<string>>();
+                    Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
                     List<TcpClient> clients = new List<TcpClient>();
 
                     while (true)
@@ -46,7 +47,7 @@ namespace Program
             }
 
             // метод на отримання та відповідь на повідомлення від клієна
-            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string>> GameHistory, List<TcpClient> clients)
+            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
                 var stream = tcpClient.GetStream();
 
@@ -73,25 +74,40 @@ namespace Program
 
                         foreach (var item in GameHistory)
                         {
-                            //item.Value.OrderBy
-                            if (item.Value.Count == 9)
+                            item.Value.OrderBy(x => x[2]).OrderBy(x => x[1]);
+                            if (item.Value.Count == 10)
                             {
-                                item.Value.RemoveAt(0);
+                                item.Value.RemoveAt(item.Value.Count);
                             }
                         }
 
                         string startNumbers = Data.Split('$')[0];
+                        string username = Data.Split('$')[1].Split('~')[0];
+                        string moves = Data.Split('$')[1].Split('~')[1];
+                        string time = Data.Split('$')[1].Split('~')[2];
+
+                        string[] playerData = { username, moves, time };
 
                         if (!GameHistory.ContainsKey(startNumbers))
                         {
-                            GameHistory.Add(startNumbers, new List<string>());
+                            GameHistory.Add(startNumbers, new List<string[]>());
+                            GameHistory[startNumbers].Add(playerData);
                         }
                         else
                         {
+                            var currentData = GameHistory[startNumbers].Where(stringToCheck => stringToCheck[0] == username).FirstOrDefault();
 
-                        }    
+                            if (currentData != null)
+                            {
+                                currentData[1] = moves;
+                                currentData[2] = time;
+                            }
 
-                        GameHistory[startNumbers].Add(Data.Split('$')[1]);
+                            if (currentData == null)
+                            {
+                                GameHistory[startNumbers].Add(playerData);
+                            }
+                        }
 
                         Console.WriteLine($"New data: {Data.Split('$')[1]}");
 
@@ -99,10 +115,14 @@ namespace Program
 
                         foreach (var data in GameHistory)
                         {
-                            feedback += data.Key + data.Value + "|";
+                            foreach (var item in data.Value)
+                            {
+                                feedback += data.Key + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
+                            }
                         }
-
+                        Console.WriteLine(feedback);
                         feedback += "\n";
+
                         foreach (var client in clients)
                         {
                             await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));

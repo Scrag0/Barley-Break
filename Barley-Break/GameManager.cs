@@ -64,7 +64,14 @@ namespace Barley_Break
 
             Moves = 0;
 
-            GameField.StartNumbers = string.Join(";", GameField.Numbers);
+            for (int i = 0; i < GameField.Size; i++)
+            {
+                for (int j = 0; j < GameField.Size; j++)
+                {
+                    if (i == GameField.Size - 1 && j == GameField.Size - 1) break;
+                    GameField.StartNumbers += GameField.Numbers[i,j].Text + ";";
+                }
+            }
         }
 
         public void ChangeColor(int rowPos, int colPos)
