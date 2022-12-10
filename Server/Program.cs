@@ -1,6 +1,8 @@
-﻿using System.Text;
-using System.Net.Sockets;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace Program
 {
@@ -10,7 +12,6 @@ namespace Program
         {
             //підключення до заданої в консолі Ip-адреси з портом
             var tcpListener = new TcpListener(IPAddress.Parse(args[0]), int.Parse(args[1]));
-
             Server server = new Server(tcpListener); // створення екземпляра сервера
         }
 
@@ -21,7 +22,7 @@ namespace Program
                 this.Work(tcpListener);
             }
 
-            //підключення нових TCP клієнтів та запуск методу на отримання та відповіді на повідомлення від клієнта
+            //підключення нових TCP клієнтів та запуск методу ProcessClientAsync
             public void Work(TcpListener tcpListener)
             {
                 try
@@ -29,14 +30,14 @@ namespace Program
                     tcpListener.Start(); // запускає сервер
                     Console.WriteLine("The server is running. Waiting for connection...");
 
-                    Dictionary<string, int> players = new Dictionary<string, int>();
+                    Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
                     List<TcpClient> clients = new List<TcpClient>();
 
                     while (true)
                     {
                         var tcpClient = tcpListener.AcceptTcpClient(); // приймаємо запит на підключення від TcpClient
                         clients.Add(tcpClient);
-                        new Thread(async () => await ProcessClientAsync(tcpClient, players, clients)).Start(); // створюємо потік для отримання і відповіді на повідомленя від TcpClient
+                        new Thread(async () => await ProcessClientAsync(tcpClient, GameHistory, clients)).Start(); // створюємо потік для отримання і відповіді на повідомленя від TcpClient
                     }
                 }
                 finally
@@ -46,67 +47,85 @@ namespace Program
             }
 
             // метод на отримання та відповідь на повідомлення від клієна
-            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, int> players, List<TcpClient> clients)
+            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
-                // словник з заготовленими відповідями на деякі повідомлення
                 var stream = tcpClient.GetStream();
-                
+
                 var response = new List<byte>(); // буфер для вхідних даних
                 int bytesRead = 10;
 
+                Console.WriteLine($"{tcpClient.Client.RemoteEndPoint} connected");
                 try
                 {
                     while (true)
                     {
+
                         while ((bytesRead = stream.ReadByte()) != '\n') // зчитуємо дані до кінцевого символу
                         {
                             response.Add((byte)bytesRead); // додаємо в буфер
                         }
-                        var playerStringData = Encoding.UTF8.GetString(response.ToArray());
 
-                        if (playerStringData == "$Disconnect")
+                        var Data = Encoding.UTF8.GetString(response.ToArray());
+
+                        if (Data == "$Disconnect")
                         {
                             break;
                         }
 
-                        var playerData = playerStringData.Split();
-
-                        string currentName = playerData[0];
-                        int currentScore = Convert.ToInt32(playerData[1]);
-
-                        // знаходимо користувача у словнику
-                        if (!players.ContainsKey(currentName))
+                        foreach (var item in GameHistory)
                         {
-                            players.Add(currentName, currentScore);
+                            item.Value.OrderBy(x => x[2]).OrderBy(x => x[1]);
+                            if (item.Value.Count == 10)
+                            {
+                                item.Value.RemoveAt(item.Value.Count);
+                            }
+                        }
+
+                        string startNumbers = Data.Split('$')[0];
+                        string username = Data.Split('$')[1].Split('~')[0];
+                        string moves = Data.Split('$')[1].Split('~')[1];
+                        string time = Data.Split('$')[1].Split('~')[2];
+
+                        string[] playerData = { username, moves, time };
+
+                        if (!GameHistory.ContainsKey(startNumbers))
+                        {
+                            GameHistory.Add(startNumbers, new List<string[]>());
+                            GameHistory[startNumbers].Add(playerData);
                         }
                         else
                         {
-                            var playerScore = players[currentName];
+                            var currentData = GameHistory[startNumbers].Where(stringToCheck => stringToCheck[0] == username).FirstOrDefault();
 
-                            if (currentScore > playerScore)
+                            if (currentData != null)
                             {
-                                Console.WriteLine($"New high score: {currentName} - {currentScore}");
-                                players[currentName] = currentScore;
+                                currentData[1] = moves;
+                                currentData[2] = time;
+                            }
+
+                            if (currentData == null)
+                            {
+                                GameHistory[startNumbers].Add(playerData);
                             }
                         }
+
+                        Console.WriteLine($"New data: {Data.Split('$')[1]}");
 
                         string feedback = "";
 
-                        int i = 1;
-                        foreach (var player in players.OrderByDescending(pair => pair.Value))
+                        foreach (var data in GameHistory)
                         {
-                            feedback += $"{i++}. {player.Key} - {player.Value}|";
-                            if (i == 9)
+                            foreach (var item in data.Value)
                             {
-                                break;
+                                feedback += data.Key + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
                             }
                         }
-
+                        Console.WriteLine(feedback);
                         feedback += "\n";
 
                         foreach (var client in clients)
                         {
-                            await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback)); // віправляємо дані до кожного користувача
+                            await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
                         }
 
                         response.Clear();

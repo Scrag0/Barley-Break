@@ -11,6 +11,7 @@ namespace Barley_Break
         private Label[,] numbers;
         private PictureBox[,] cells;
         private PictureBox[,] map;
+        private string startNumbers;
 
         private Color basicCellColor = Color.Orange;
         private Color correctCellColor = Color.ForestGreen;
@@ -36,6 +37,7 @@ namespace Barley_Break
         public Label[,] Numbers { get => numbers; set => numbers = value; }
         public PictureBox[,] Cells { get => cells; set => cells = value; }
         public PictureBox[,] Map { get => map; set => map = value; }
+        public string StartNumbers { get => startNumbers; set => startNumbers = value; }
         public Color BasicCellColor { get => basicCellColor; }
         public Color CorrectCellColor { get => correctCellColor; }
         public int Size { get => size; set => size = value; }
