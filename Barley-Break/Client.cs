@@ -23,9 +23,9 @@ namespace Barley_Break
         {
             try
             {
-                tcpClient.Connect(IPAddress.Parse(host), int.Parse(port));
-                stream = tcpClient.GetStream();
-                isConnected = true;
+                TcpClient.Connect(IPAddress.Parse(host), int.Parse(port));
+                stream = TcpClient.GetStream();
+                IsConnected = true;
             }
             catch
             {
@@ -36,23 +36,23 @@ namespace Barley_Break
         //метод, що від'єднує користувача з сервером
         public void Disconnect()
         {
-            if (isConnected)
+            if (IsConnected)
             {
-                stream.Write(Encoding.UTF8.GetBytes("$Disconnect\n"));
-                stream.Close();
-                tcpClient.Close();
-                isConnected = false;
+                Stream.Write(Encoding.UTF8.GetBytes("$Disconnect\n"));
+                Stream.Close();
+                TcpClient.Close();
+                IsConnected = false;
             }
         }
 
         //метод, що відправляє нові результати
-        public async void SendPlayerData(int gameFieldSize, string userName, int moves, string time)
+        public async void SendPlayerData(string startNumbers, string userName, int moves, string time)
         {
             try
             {
-                string playerData = gameFieldSize + "$" + userName + "~" + moves + "~" + time;
+                string playerData = startNumbers + "$" + userName + "~" + moves + "~" + time;
                 byte[] data = Encoding.UTF8.GetBytes(playerData + '\n');
-                await stream.WriteAsync(data);
+                await Stream.WriteAsync(data);
             }
             catch
             {
@@ -65,14 +65,14 @@ namespace Barley_Break
         public string GetScores()
         {
             string players = string.Empty;
-            var response = new List<byte>(); // буфер для вхідних даних
+            var response = new List<byte>();
             int bytesRead = 10;
 
             try
             {
-                while ((bytesRead = stream.ReadByte()) != '\n')
+                while ((bytesRead = Stream.ReadByte()) != '\n')
                 {
-                    response.Add((byte)bytesRead);// додаємо в буфер
+                    response.Add((byte)bytesRead);
                 }
                 players = Encoding.UTF8.GetString(response.ToArray());
 
