@@ -1,6 +1,8 @@
 using System.Drawing;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Permissions;
 using System.Text;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Rebar;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
@@ -15,20 +17,23 @@ namespace Barley_Break
 
         private DateTime startDateTime;
         private DateTime currentDateTime;
-        string currentTime;
+        private string currentTime;
 
         private delegate void printer(string data);
         private delegate void cleaner();
         private delegate void timer();
+        private delegate void layout(string data);
         private printer Printer;
         private cleaner Cleaner;
         private timer Timer;
+        private layout Layouts;
 
         private string userName = string.Empty;
         private readonly string host = "127.0.0.1";
         private readonly string port = "6462";
 
         private Thread clientThread;
+        private Thread timeThread;
 
         public GameField GameField { get => gameField; }
         public Client Client { get => client; }
@@ -39,12 +44,11 @@ namespace Barley_Break
         public string CurrentTime { get => currentTime; set => currentTime = value; }
 
         public string UserName { get => userName; set => userName = value; }
-
         public string Host { get => host; }
-
         public string Port { get => port; }
 
         public Thread ClientThread { get => clientThread; set => clientThread = value; }
+        public Thread TimeThread { get => timeThread; set => timeThread = value; }
 
         public Form1()
         {
@@ -52,11 +56,18 @@ namespace Barley_Break
             Printer = new printer(Print);
             Cleaner = new cleaner(ClearTopScores);
             Timer = new timer(GetTime);
+            Layouts = new layout(UpdateLayouts);
 
             this.KeyDown += new KeyEventHandler(OnKeyboardPressedMove);
 
             Client.TcpClient = new TcpClient();
             Client.Connect(Host, Port);
+
+            CreateSizes(5);
+
+            ClientThread = new Thread(ClientListener);
+            ClientThread.IsBackground = true;
+            ClientThread.Start();
 
             GameManager = new GameManager(this.Controls);
             gameField = GameManager.GameField;
@@ -64,20 +75,33 @@ namespace Barley_Break
             RecreateAll(GameField.Size);
         }
 
-        private void Listener()
+        private void ClientListener()
         {
             while (Client.IsConnected)
-            {
-                string data = Client.GetScores();
-                GetTime();
-                if (GameManager.TmpMoves == GameManager.Moves)
+            { 
+                string data = Client.GetData();
+
+                if (data.Contains("#updateLayouts"))
                 {
-                    UpdateTopScores(data);
+                    UpdateLayouts(data.Split('&')[1]);
+                }
+
+                if (data.Contains("#updateTopScores"))
+                {
+                    UpdateTopScores(data.Split('&')[1]);
                 }
             }
         }
 
-        // Exeption of disposed object
+        private void TimeListener()
+        {
+            while (!btnPlay.Enabled)
+            {
+                GetTime();
+            }
+        }
+
+        // Exeption of disposed object?
         private void GetTime()
         {
             if (this.InvokeRequired)
@@ -88,10 +112,10 @@ namespace Barley_Break
 
             CurrentDateTime = DateTime.Now;
             CurrentTime = CurrentDateTime.Subtract(StartDateTime).ToString().Split('.')[0];
+            if (string.IsNullOrEmpty(CurrentTime)) CurrentTime = TimeOnly.MinValue.ToString();
             lblTime.Text = "Time: " + CurrentTime;
         }
 
-        //метод, що очищує TopScores
         private void ClearTopScores()
         {
             if (this.InvokeRequired)
@@ -102,15 +126,17 @@ namespace Barley_Break
             rTxtBTopScores.Clear();
         }
 
-        //метод, що оновлює TopScores
         private void UpdateTopScores(string data)
         {
-            ClearTopScores();
-
             var Fields = data.Split('|');
             int countFields = Fields.Length;
 
             if (countFields <= 0) return;
+
+            if (Fields[0].Split('$')[0] == GameField.StartNumbers)
+            {
+                ClearTopScores();
+            }
 
             for (int i = 0; i < countFields; i++)
             {
@@ -134,6 +160,69 @@ namespace Barley_Break
             }
         }
 
+        private void UpdateLayouts(string data)
+        {
+            if (data.Contains('|'))
+            {
+                string[] Layouts = data.Split('|');
+                foreach (var layout in Layouts)
+                {
+                    if (string.IsNullOrEmpty(layout)) continue;
+                    CreateMenuItem(layoutsToolStripMenuItem, layout, changeLayoutToolStripMenuItem_Click);
+                }
+                return;
+            }
+
+            if (string.IsNullOrEmpty(data)) return;
+
+            if (layoutsToolStripMenuItem.DropDownItems.Count == 10)
+            {
+                layoutsToolStripMenuItem.DropDownItems.RemoveAt(0);
+            }
+
+            if (layoutsToolStripMenuItem.DropDownItems.Count <= 0)
+            {
+                CreateMenuItem(layoutsToolStripMenuItem, data, changeLayoutToolStripMenuItem_Click);
+                return;
+            }
+
+            bool IsPresent = false;
+            foreach (ToolStripMenuItem children in layoutsToolStripMenuItem.DropDownItems)
+            {
+                if (children.Text == data)
+                {
+                    IsPresent = true;
+                    break;
+                }
+            }
+
+            if (!IsPresent) CreateMenuItem(layoutsToolStripMenuItem, data, changeLayoutToolStripMenuItem_Click);
+        }
+
+        private void CreateMenuItem(ToolStripMenuItem menuItem, string data, EventHandler eventHandler)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(Layouts, data);
+                return;
+            }
+
+            var item = new ToolStripMenuItem(data, null, eventHandler);
+            menuItem.DropDownItems.Add(item);
+        }
+
+        private void CreateSizes(int size)
+        {
+            if (size < 3) size = 3;
+
+            if (size > 7) size = 7;
+
+            for (int i = 3; i <= size; i++)
+            {
+                CreateMenuItem(sizeToolStripMenuItem, $"{i}x{i}", sizeChangeToolStripMenuItem_Click);
+            }
+        }
+
         //метод, що виводить текст в richTextBox на Form1
         private void Print(string data)
         {
@@ -149,6 +238,46 @@ namespace Barley_Break
                 rTxtBTopScores.AppendText(data);
             else
                 rTxtBTopScores.AppendText(Environment.NewLine + data);
+
+            try
+            {
+                //if (isExeption)
+                //{
+                //    rTxtBChat.Select(rTxtBChat.TextLength - msg.Length, msg.Length);
+                //    rTxtBChat.SelectionColor = Color.BlueViolet;
+
+                //    isExeption = false;
+                //    return;
+                //}
+
+                // Works, but change colors
+                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length, data.Split(".")[0].Length);
+                //if (data.Split(".")[0] == userName)
+                //{
+                //    rTxtBTopScores.SelectionColor = Color.Blue;
+                //}
+                //else
+                //{
+                //    rTxtBTopScores.SelectionColor = Color.Red;
+                //}
+
+                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length + data.Split(":")[0].Length + 1, data.Split(":")[1].Length - 5);
+                //if (data.Split(".")[0] == userName)
+                //{
+                //    rTxtBTopScores.SelectionColor = Color.Red;
+                //}
+
+                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length + data.Split("Time:")[0].Length + 5, data.Split("Time:")[1].Length);
+                //if (data.Split(".")[0] == userName)
+                //{
+                //    rTxtBTopScores.SelectionColor = Color.LawnGreen;
+                //}
+            }
+            catch (Exception ex)
+            {
+                //isExeption = true;
+                //Print(ex.Message);
+            }
         }
 
         private void OnKeyboardPressedMove(object sender,KeyEventArgs e)
@@ -164,36 +293,52 @@ namespace Barley_Break
 
             if (GameManager.Check())
             {
+                Stop();
                 MessageBox.Show($"Finish.\nYour result : {GameManager.Moves}\nTime: {CurrentTime}");
             }
         }
 
         private void btnPlay_Click(object sender, EventArgs e)
         {
-            if (!GameManager.IsNameCorrect(txtBName.Text))
+            Start();
+
+            if (!btnPlay.Enabled)
             {
-                ClearTopScores();
-                Print("Write correct username");
-            }
-            else
-            {
-                ClearTopScores();
-
-                userName = txtBName.Text;
-
-                txtBName.Enabled = false;
-                btnPlay.Visible = false;
-                btnPlay.Enabled = false;
-
-                ClientThread = new Thread(Listener);
-                ClientThread.IsBackground = true;
-                ClientThread.Start();
-
+                RecreateAll(GameField.Size);
                 GenerateGameField();
                 GameManager.RandomizeCells();
-
-                StartDateTime = DateTime.Now;
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
             }
+        }
+
+        private void Start()
+        {
+            ClearTopScores();
+
+            if (!GameManager.IsNameCorrect(txtBName.Text))
+            {
+                Print("Write correct username");
+                return;
+            }
+
+            userName = txtBName.Text;
+
+            txtBName.Enabled = false;
+            btnPlay.Visible = false;
+            btnPlay.Enabled = false;
+
+            if (TimeThread == null || !TimeThread.IsAlive)
+            {
+                TimeThread = new Thread(TimeListener);
+                TimeThread.IsBackground = true;
+                TimeThread.Start();
+            }
+
+            GameManager.Moves = 0;
+            GameManager.TmpMoves = -1;
+            lblMoves.Text = "Moves: " + GameManager.Moves;
+
+            StartDateTime = DateTime.Now;
         }
 
         private void Restart()
@@ -205,11 +350,19 @@ namespace Barley_Break
             btnPlay.Enabled = true;
             GameManager.Moves = 0;
             GameManager.TmpMoves = -1;
+            StartDateTime = DateTime.Now;
 
             RecreateAll(GameField.Size);
 
-            lblTime.Text = "Time: " + 0;
+            lblTime.Text = "Time: 0";
             lblMoves.Text = "Moves: " + GameManager.Moves;
+        }
+
+        private void Stop()
+        {
+            txtBName.Enabled = true;
+            btnPlay.Visible = true;
+            btnPlay.Enabled = true;
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -233,31 +386,59 @@ namespace Barley_Break
         {
             if (!btnPlay.Enabled)
             {
+                ClearTopScores();
                 GameManager.RandomizeCells();
+
+                GameManager.Moves = 0;
+                GameManager.TmpMoves = -1;
+                StartDateTime = DateTime.Now;
+                lblMoves.Text = "Moves: " + GameManager.Moves;
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
             }
         }
 
-        private void x3ToolStripMenuItem_Click(object sender, EventArgs e)
+        private void sizeChangeToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            var menuItem = sender as ToolStripMenuItem;
+            if (menuItem == null) return;
+
             Restart();
-            RecreateAll(3);
+            RecreateAll(int.Parse(menuItem.Text.Split('x')[0]));
         }
 
-        private void x4ToolStripMenuItem_Click(object sender, EventArgs e)
+        private void changeLayoutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Restart();
-            RecreateAll(4);
-        }
+            // Call function in gameManager to change layout
+            var menuItem = sender as ToolStripMenuItem;
 
-        private void x5ToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            Restart();
-            RecreateAll(5);
+            if (menuItem == null) return;
+
+            Start();
+
+            if (btnPlay.Enabled) return;
+
+            GameField.StartNumbers = menuItem.Text;
+            Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
+
+            List<int> numbers = menuItem.Text.Split(';').Where(x => x != string.Empty).Select(x => Convert.ToInt32(x)).ToList();
+            numbers.Add(0);
+
+            RecreateAll((int) Math.Sqrt(numbers.Count));
+
+            for (int i = 0; i < GameField.Size; i++)
+            {
+                for (int j = 0; j < GameField.Size; j++)
+                {
+                    if (GameManager.IsInCorner(i, j)) continue;
+
+                    GenerateCell(i, j, numbers[i * GameField.Size + j]);
+                }
+            }
         }
 
         public void RecreateAll(int newGameFieldSize)
         {
-            GameManager.DeleteAll();
+            DeleteAll();
 
             GameField.Size = newGameFieldSize;
 
@@ -271,6 +452,33 @@ namespace Barley_Break
             GameField.CurrentColPos = GameField.Size - 1;
 
             CreateMap();
+        }
+
+        public void DeleteAll()
+        {
+            if (GameField.Map == null) return;
+
+            foreach (var item in GameField.Map)
+            {
+                if (item != null) Controls.Remove(item);
+            }
+
+            if (GameField.Cells == null) return;
+            if (GameField.Numbers == null) return;
+
+            for (int i = 0; i < GameField.Size; i++)
+            {
+                for (int j = 0; j < GameField.Size; j++)
+                {
+                    if (GameField.CurrentRowPos == i && GameField.CurrentColPos == j) continue;
+
+                    if (GameField.Cells[i, j] != null && GameField.Numbers[i, j] != null)
+                    {
+                        Controls.Remove(GameField.Cells[i, j]);
+                        Controls.Remove(GameField.Numbers[i, j]);
+                    }
+                }
+            }
         }
 
         public void CreateMap()
@@ -292,32 +500,33 @@ namespace Barley_Break
 
         public void GenerateGameField()
         {
-            int n = 1;
             for (int i = 0; i < GameField.Size; i++)
             {
                 for (int j = 0; j < GameField.Size; j++)
                 {
-                    if (n == GameField.Size * GameField.Size)
-                    {
-                        break;
-                    }
+                    if (GameManager.IsInCorner(i, j)) continue;
 
-                    GameField.Cells[i, j] = new PictureBox();
-                    GameField.Numbers[i, j] = new Label();
-                    GameField.Numbers[i, j].Text = Convert.ToString(n++);
-                    GameField.Numbers[i, j].Size = new Size(GameField.CellSize, GameField.CellSize);
-                    GameField.Numbers[i, j].TextAlign = ContentAlignment.MiddleCenter;
-                    GameField.Numbers[i, j].Font = new Font(new FontFamily("Microsoft Sans Serif"), 15);
-                    GameField.Cells[i, j].Controls.Add(GameField.Numbers[i, j]);
-                    GameField.Cells[i, j].Location = new Point(pnlGameField.Location.X + GameField.WidthCellOffset + (GameField.CellSize + GameField.GapBetweenCells) * j,
-                                                         pnlGameField.Location.Y + GameField.HeighCelltOffset + (GameField.CellSize + GameField.GapBetweenCells) * i);
-                    GameField.Cells[i, j].Size = new Size(GameField.CellSize, GameField.CellSize);
-                    GameField.Cells[i, j].BackColor = GameField.BasicCellColor;
-                    this.Controls.Add(GameField.Cells[i, j]);
-                    GameField.Cells[i, j].BringToFront();
-                    GameManager.ChangeColor(i, j);
+                    GenerateCell(i, j, i * GameField.Size + j + 1);
                 }
             }
+        }
+
+        public void GenerateCell(int rowPos, int colPos, int value)
+        {
+            GameField.Cells[rowPos, colPos] = new PictureBox();
+            GameField.Numbers[rowPos, colPos] = new Label();
+            GameField.Numbers[rowPos, colPos].Text = Convert.ToString(value);
+            GameField.Numbers[rowPos, colPos].Size = new Size(GameField.CellSize, GameField.CellSize);
+            GameField.Numbers[rowPos, colPos].TextAlign = ContentAlignment.MiddleCenter;
+            GameField.Numbers[rowPos, colPos].Font = new Font(new FontFamily("Microsoft Sans Serif"), 15);
+            GameField.Cells[rowPos, colPos].Controls.Add(GameField.Numbers[rowPos, colPos]);
+            GameField.Cells[rowPos, colPos].Location = new Point(pnlGameField.Location.X + GameField.WidthCellOffset + (GameField.CellSize + GameField.GapBetweenCells) * colPos,
+                                                 pnlGameField.Location.Y + GameField.HeighCelltOffset + (GameField.CellSize + GameField.GapBetweenCells) * rowPos);
+            GameField.Cells[rowPos, colPos].Size = new Size(GameField.CellSize, GameField.CellSize);
+            GameField.Cells[rowPos, colPos].BackColor = GameField.BasicCellColor;
+            this.Controls.Add(GameField.Cells[rowPos, colPos]);
+            GameField.Cells[rowPos, colPos].BringToFront();
+            GameManager.ChangeColor(rowPos, colPos);
         }
 
         public void ResizeElements()

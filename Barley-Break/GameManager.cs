@@ -22,7 +22,7 @@ namespace Barley_Break
         public int Moves { get => moves; set => moves = value; }
         public int TmpMoves { get => tmpMoves; set => tmpMoves = value; }
 
-        private Control.ControlCollection Controls;
+        private Control.ControlCollection Controls; //Does not used. Review GameManager to static class.
 
         public GameManager(Control.ControlCollection Controls)
         {
@@ -63,12 +63,12 @@ namespace Barley_Break
             }
 
             Moves = 0;
-
+            GameField.StartNumbers = string.Empty;
             for (int i = 0; i < GameField.Size; i++)
             {
                 for (int j = 0; j < GameField.Size; j++)
                 {
-                    if (i == GameField.Size - 1 && j == GameField.Size - 1) break;
+                    if (IsInCorner(i, j)) continue;
                     GameField.StartNumbers += GameField.Numbers[i,j].Text + ";";
                 }
             }
@@ -87,12 +87,6 @@ namespace Barley_Break
                     {
                         if (IsInRange(GameField.CurrentRowPos + 1, GameField.CurrentColPos))
                         {
-                            //  Alternative
-                            //pics[GameField.CurrentRowPos, GameField.CurrentColPos] = pics[GameField.CurrentRowPos - 1, GameField.CurrentColPos];
-                            //labels[GameField.CurrentRowPos, GameField.CurrentColPos] = labels[GameField.CurrentRowPos - 1, GameField.CurrentColPos];
-                            //pics[GameField.CurrentRowPos - 1, GameField.CurrentColPos].Location = new Point(pics[GameField.CurrentRowPos - 1, GameField.CurrentColPos].Location.X, pics[GameField.CurrentRowPos - 1, GameField.CurrentColPos].Location.Y + (GameField.Cellsize + GameField.GapBetweenCells));
-                            //GameField.CurrentRowPos--;
-
                             GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos] = GameField.Cells[GameField.CurrentRowPos + 1, GameField.CurrentColPos];
                             GameField.Numbers[GameField.CurrentRowPos, GameField.CurrentColPos] = GameField.Numbers[GameField.CurrentRowPos + 1, GameField.CurrentColPos];
                             ChangeColor(GameField.CurrentRowPos, GameField.CurrentColPos);
@@ -107,11 +101,6 @@ namespace Barley_Break
                     {
                         if (IsInRange(GameField.CurrentRowPos - 1, GameField.CurrentColPos))
                         {
-                            //pics[GameField.CurrentRowPos, GameField.CurrentColPos] = pics[GameField.CurrentRowPos + 1, GameField.CurrentColPos];
-                            //labels[GameField.CurrentRowPos, GameField.CurrentColPos] = labels[GameField.CurrentRowPos + 1, GameField.CurrentColPos];
-                            //pics[GameField.CurrentRowPos + 1, GameField.CurrentColPos].Location = new Point(pics[GameField.CurrentRowPos + 1, GameField.CurrentColPos].Location.X, pics[GameField.CurrentRowPos + 1, GameField.CurrentColPos].Location.Y - (GameField.Cellsize + GameField.GapBetweenCells));
-                            //GameField.CurrentRowPos++;
-
                             GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos] = GameField.Cells[GameField.CurrentRowPos - 1, GameField.CurrentColPos];
                             GameField.Numbers[GameField.CurrentRowPos, GameField.CurrentColPos] = GameField.Numbers[GameField.CurrentRowPos - 1, GameField.CurrentColPos];
                             ChangeColor(GameField.CurrentRowPos, GameField.CurrentColPos);
@@ -176,15 +165,13 @@ namespace Barley_Break
 
         public bool Check()
         {
-            if (GameField.CurrentRowPos != GameField.Size - 1 || GameField.CurrentColPos != GameField.Size - 1) return false;
+            if (!IsInCorner(GameField.CurrentRowPos, GameField.CurrentColPos)) return false;
 
             for (int i = 0; i < GameField.Size; i++)
             {
                 for (int j = 0; j < GameField.Size; j++)
                 {
-                    //if (IsCorrect(i, j) || (i == GameField.Size - 1 && j == GameField.Size - 1)) continue;
-                    //return false;
-                    if (i == GameField.Size - 1 && j == GameField.Size - 1) return true;
+                    if (IsInCorner(i, j)) return true;
                     if (!IsCorrect(i, j)) return false;
                 }
             }
@@ -199,31 +186,10 @@ namespace Barley_Break
             return false;
         }
 
-        public void DeleteAll()
+        public bool IsInCorner(int rowPos, int colPos)
         {
-            if (GameField.Map == null) return;
-
-            foreach (var item in GameField.Map)
-            {
-                if (item != null) Controls.Remove(item);
-            }
-
-            if (GameField.Cells == null) return;
-            if (GameField.Numbers == null) return;
-
-            for (int i = 0; i < GameField.Size; i++)
-            {
-                for (int j = 0; j < GameField.Size; j++)
-                {
-                    if (GameField.CurrentRowPos == i && GameField.CurrentColPos == j) continue;
-
-                    if (GameField.Cells[i, j] != null && GameField.Numbers[i, j] != null)
-                    {
-                        Controls.Remove(GameField.Cells[i, j]);
-                        Controls.Remove(GameField.Numbers[i, j]);
-                    }
-                }
-            }
+            if (rowPos == GameField.Size - 1 && colPos == GameField.Size - 1) return true;
+            return false;
         }
     }
 }

@@ -57,6 +57,8 @@ namespace Program
                 Console.WriteLine($"{tcpClient.Client.RemoteEndPoint} connected");
                 try
                 {
+                    SendAllLayouts(GameHistory, clients);
+
                     while (true)
                     {
 
@@ -72,12 +74,12 @@ namespace Program
                             break;
                         }
 
-                        foreach (var item in GameHistory)
+                        foreach (var item in GameHistory.Keys)
                         {
-                            item.Value.OrderBy(x => x[2]).OrderBy(x => x[1]);
-                            if (item.Value.Count == 10)
+                            GameHistory[item] = GameHistory[item].Where(x => x[2] != "").OrderBy(x => TimeOnly.Parse(x[2])).ThenBy(x => x[1]).ToList();
+                            if (GameHistory[item].Count == 10)
                             {
-                                item.Value.RemoveAt(item.Value.Count);
+                                GameHistory[item].RemoveAt(GameHistory[item].Count);
                             }
                         }
 
@@ -91,6 +93,9 @@ namespace Program
                         if (!GameHistory.ContainsKey(startNumbers))
                         {
                             GameHistory.Add(startNumbers, new List<string[]>());
+
+                            SendLayout(startNumbers, GameHistory, clients);
+
                             GameHistory[startNumbers].Add(playerData);
                         }
                         else
@@ -111,22 +116,7 @@ namespace Program
 
                         Console.WriteLine($"New data: {Data.Split('$')[1]}");
 
-                        string feedback = "";
-
-                        foreach (var data in GameHistory)
-                        {
-                            foreach (var item in data.Value)
-                            {
-                                feedback += data.Key + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
-                            }
-                        }
-                        Console.WriteLine(feedback);
-                        feedback += "\n";
-
-                        foreach (var client in clients)
-                        {
-                            await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
-                        }
+                        SendTopScores(startNumbers, GameHistory, clients);
 
                         response.Clear();
                     }
@@ -142,6 +132,57 @@ namespace Program
                     clients.Remove(tcpClient);
                     tcpClient.Close();
                     tcpClient.Dispose();
+                }
+            }
+
+            private async void SendTopScores(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                string feedback = "#updateTopScores&";
+
+                foreach (var item in GameHistory[layout])
+                {
+                    feedback += layout + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
+                }
+
+                //Console.WriteLine(feedback);
+                feedback += "\n";
+
+                foreach (var client in clients)
+                {
+                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                }
+            }
+
+            private async void SendLayout(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                string feedback = "#updateLayouts&";
+
+                feedback += layout;
+
+                //Console.WriteLine(feedback);
+                feedback += "\n";
+
+                foreach (var client in clients)
+                {
+                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                }
+            }
+
+            private async void SendAllLayouts(Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                string feedback = "#updateLayouts&";
+
+                foreach (var layout in GameHistory.Keys)
+                {
+                    feedback += layout + "|";
+                }
+
+                //Console.WriteLine(feedback);
+                feedback += "\n";
+
+                foreach (var client in clients)
+                {
+                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
                 }
             }
         }

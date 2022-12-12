@@ -62,9 +62,9 @@ namespace Barley_Break
         }
 
         //метод, що отримує поточні результати гравців від сервера
-        public string GetScores()
+        public string GetData()
         {
-            string players = string.Empty;
+            string data = string.Empty;
             var response = new List<byte>();
             int bytesRead = 10;
 
@@ -74,7 +74,7 @@ namespace Barley_Break
                 {
                     response.Add((byte)bytesRead);
                 }
-                players = Encoding.UTF8.GetString(response.ToArray());
+                data = Encoding.UTF8.GetString(response.ToArray());
 
                 response.Clear();
             }
@@ -83,7 +83,7 @@ namespace Barley_Break
                 //ClearTopScores();
                 //Print("Error: Get scores");
             }
-            return players;
+            return data;
         }
     }
 }
