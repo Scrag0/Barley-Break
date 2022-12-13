@@ -73,6 +73,11 @@ namespace Program
                         {
                             break;
                         }
+                        
+                        if (GameHistory.Keys.Count == 11)
+                        {
+                            GameHistory.Remove(GameHistory.Keys.First());
+                        }
 
                         foreach (var item in GameHistory.Keys)
                         {
@@ -87,8 +92,9 @@ namespace Program
                         string username = Data.Split('$')[1].Split('~')[0];
                         string moves = Data.Split('$')[1].Split('~')[1];
                         string time = Data.Split('$')[1].Split('~')[2];
+                        string isFinished = Data.Split('$')[1].Split('~')[3];
 
-                        string[] playerData = { username, moves, time };
+                        string[] playerData = { username, moves, time, isFinished };
 
                         if (!GameHistory.ContainsKey(startNumbers))
                         {
@@ -104,8 +110,18 @@ namespace Program
 
                             if (currentData != null)
                             {
-                                currentData[1] = moves;
-                                currentData[2] = time;
+                                if (currentData[3] == false.ToString())
+                                {
+                                    currentData[1] = moves;
+                                    currentData[2] = time;
+                                    currentData[3] = isFinished;
+                                }
+
+                                if (bool.Parse(isFinished) && TimeOnly.Parse(currentData[2]) >= TimeOnly.Parse(time) && int.Parse(currentData[1]) >= int.Parse(moves))
+                                {
+                                    currentData[1] = moves;
+                                    currentData[2] = time;
+                                }
                             }
 
                             if (currentData == null)
@@ -123,7 +139,7 @@ namespace Program
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("ProcessClientAsync: " + ex.Message);
                 }
                 finally
                 {
@@ -137,52 +153,71 @@ namespace Program
 
             private async void SendTopScores(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
-                string feedback = "#updateTopScores&";
-
-                foreach (var item in GameHistory[layout])
+                try
                 {
-                    feedback += layout + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
+                    string feedback = "#updateTopScores&";
+
+                    foreach (var item in GameHistory[layout])
+                    {
+                        feedback += layout + "$" + item[0] + "~" + item[1] + "~" + item[2] + "~" + item[3] + "|";
+                    }
+
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
                 }
-
-                //Console.WriteLine(feedback);
-                feedback += "\n";
-
-                foreach (var client in clients)
+                catch (Exception ex)
                 {
-                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    Console.WriteLine("SendTopScores: " + ex.Message);
                 }
             }
 
             private async void SendLayout(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
-                string feedback = "#updateLayouts&";
-
-                feedback += layout;
-
-                //Console.WriteLine(feedback);
-                feedback += "\n";
-
-                foreach (var client in clients)
+                try
                 {
-                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    string feedback = "#updateLayouts&";
+
+                    feedback += layout;
+
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("SendLayout: " + ex.Message);
                 }
             }
 
             private async void SendAllLayouts(Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
-                string feedback = "#updateLayouts&";
-
-                foreach (var layout in GameHistory.Keys)
+                try
                 {
-                    feedback += layout + "|";
+                    string feedback = "#updateLayouts&";
+
+                    foreach (var layout in GameHistory.Keys)
+                    {
+                        feedback += layout + "|";
+                    }
+
+                    //Console.WriteLine(feedback);
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
                 }
-
-                //Console.WriteLine(feedback);
-                feedback += "\n";
-
-                foreach (var client in clients)
+                catch (Exception ex)
                 {
-                    await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    Console.WriteLine("SendAllLayouts: " + ex.Message);
                 }
             }
         }

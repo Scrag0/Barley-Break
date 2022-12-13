@@ -12,6 +12,7 @@ namespace Barley_Break
         private PictureBox[,] cells;
         private PictureBox[,] map;
         private string startNumbers;
+        private bool isFinished = false;
 
         private Color basicCellColor = Color.Orange;
         private Color correctCellColor = Color.ForestGreen;
@@ -34,6 +35,9 @@ namespace Barley_Break
         private int currentRowPos;
         private int currentColPos;
 
+        private int moves = 0;
+        private int tmpMoves = -1;
+
         public Label[,] Numbers { get => numbers; set => numbers = value; }
         public PictureBox[,] Cells { get => cells; set => cells = value; }
         public PictureBox[,] Map { get => map; set => map = value; }
@@ -52,5 +56,8 @@ namespace Barley_Break
         public int GapBetweenCells { get => gapBetweenCells; }
         public int CurrentRowPos { get => currentRowPos; set => currentRowPos = value; }
         public int CurrentColPos { get => currentColPos; set => currentColPos = value; }
+        public int Moves { get => moves; set => moves = value; }
+        public int TmpMoves { get => tmpMoves; set => tmpMoves = value; }
+        public bool IsFinished { get => isFinished; set => isFinished = value; }
     }
 }

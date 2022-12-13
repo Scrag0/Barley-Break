@@ -16,10 +16,9 @@ namespace Barley_Break
         private GameField gameField;
 
         private DateTime startDateTime;
-        private DateTime currentDateTime;
         private string currentTime;
 
-        private delegate void printer(string data);
+        private delegate void printer(string data, bool check);
         private delegate void cleaner();
         private delegate void timer();
         private delegate void layout(string data);
@@ -40,7 +39,6 @@ namespace Barley_Break
         public GameManager GameManager { get => gameManager; set => gameManager = value; }
 
         public DateTime StartDateTime { get => startDateTime; set => startDateTime = value; }
-        public DateTime CurrentDateTime { get => currentDateTime; set => currentDateTime = value; }
         public string CurrentTime { get => currentTime; set => currentTime = value; }
 
         public string UserName { get => userName; set => userName = value; }
@@ -69,7 +67,7 @@ namespace Barley_Break
             ClientThread.IsBackground = true;
             ClientThread.Start();
 
-            GameManager = new GameManager(this.Controls);
+            GameManager = new GameManager();
             gameField = GameManager.GameField;
             ResizeElements();
             RecreateAll(GameField.Size);
@@ -90,6 +88,12 @@ namespace Barley_Break
                 {
                     UpdateTopScores(data.Split('&')[1]);
                 }
+
+                data = Client.GetClientException();
+                if (data.Contains("#clientException"))
+                {
+                    UpdateExceptions(data.Split('&')[1]);
+                }
             }
         }
 
@@ -101,29 +105,42 @@ namespace Barley_Break
             }
         }
 
-        // Exeption of disposed object?
+        // Without TryCatch was System.ObjectDisposedException: "Cannot access a disposed object.ObjectDisposed_ObjectName_Name"
         private void GetTime()
         {
-            if (this.InvokeRequired)
+            try
             {
-                this.Invoke(Timer);
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(Timer);
+                    return;
+                }
+
+                CurrentTime = DateTime.Now.Subtract(StartDateTime).ToString().Split('.')[0];
+                if (string.IsNullOrEmpty(CurrentTime)) CurrentTime = TimeOnly.MinValue.ToString();
+                lblTime.Text = "Time: " + CurrentTime;
+            }
+            catch
+            {
                 return;
             }
-
-            CurrentDateTime = DateTime.Now;
-            CurrentTime = CurrentDateTime.Subtract(StartDateTime).ToString().Split('.')[0];
-            if (string.IsNullOrEmpty(CurrentTime)) CurrentTime = TimeOnly.MinValue.ToString();
-            lblTime.Text = "Time: " + CurrentTime;
         }
 
         private void ClearTopScores()
         {
-            if (this.InvokeRequired)
+            try
             {
-                this.Invoke(Cleaner);
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(Cleaner);
+                    return;
+                }
+                rTxtBTopScores.Clear();
+            }
+            catch
+            {
                 return;
             }
-            rTxtBTopScores.Clear();
         }
 
         private void UpdateTopScores(string data)
@@ -150,7 +167,7 @@ namespace Barley_Break
                     try
                     {
                         if (string.IsNullOrEmpty(playerData)) continue;
-                        Print(playerData.Split('~')[0] + ". Moves:" + playerData.Split('~')[1] + " Time:" + playerData.Split('~')[2]);
+                        Print(playerData.Split('~')[0] + ". Moves:" + playerData.Split('~')[1] + " Time:" + playerData.Split('~')[2], bool.Parse(playerData.Split('~')[3]));
                     }
                     catch
                     {
@@ -199,6 +216,21 @@ namespace Barley_Break
             if (!IsPresent) CreateMenuItem(layoutsToolStripMenuItem, data, changeLayoutToolStripMenuItem_Click);
         }
 
+        private void UpdateExceptions(string data)
+        {
+            ClearTopScores();
+
+            try
+            {
+                if (string.IsNullOrEmpty(data)) return;
+                Print(data);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
         private void CreateMenuItem(ToolStripMenuItem menuItem, string data, EventHandler eventHandler)
         {
             if (this.InvokeRequired)
@@ -223,78 +255,56 @@ namespace Barley_Break
             }
         }
 
-        //метод, що виводить текст в richTextBox на Form1
-        private void Print(string data)
+        private void Print(string data, bool isFinished = false)
         {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(Printer, data);
-                return;
-            }
-
-            data = data ?? string.Empty;
-
-            if (rTxtBTopScores.Text.Length == 0)
-                rTxtBTopScores.AppendText(data);
-            else
-                rTxtBTopScores.AppendText(Environment.NewLine + data);
-
             try
             {
-                //if (isExeption)
-                //{
-                //    rTxtBChat.Select(rTxtBChat.TextLength - msg.Length, msg.Length);
-                //    rTxtBChat.SelectionColor = Color.BlueViolet;
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(Printer, data, isFinished);
+                    return;
+                }
 
-                //    isExeption = false;
-                //    return;
-                //}
+                data = data ?? string.Empty;
 
-                // Works, but change colors
-                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length, data.Split(".")[0].Length);
-                //if (data.Split(".")[0] == userName)
-                //{
-                //    rTxtBTopScores.SelectionColor = Color.Blue;
-                //}
-                //else
-                //{
-                //    rTxtBTopScores.SelectionColor = Color.Red;
-                //}
+                if (rTxtBTopScores.Text.Length == 0)
+                    rTxtBTopScores.AppendText(data);
+                else
+                    rTxtBTopScores.AppendText(Environment.NewLine + data);
 
-                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length + data.Split(":")[0].Length + 1, data.Split(":")[1].Length - 5);
-                //if (data.Split(".")[0] == userName)
-                //{
-                //    rTxtBTopScores.SelectionColor = Color.Red;
-                //}
-
-                //rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length + data.Split("Time:")[0].Length + 5, data.Split("Time:")[1].Length);
-                //if (data.Split(".")[0] == userName)
-                //{
-                //    rTxtBTopScores.SelectionColor = Color.LawnGreen;
-                //}
+                rTxtBTopScores.Select(rTxtBTopScores.TextLength - data.Length, data.Length);
+                if (isFinished)
+                {
+                    rTxtBTopScores.SelectionColor = Color.Blue;
+                }
+                else
+                {
+                    rTxtBTopScores.SelectionColor = Color.Red;
+                }
             }
-            catch (Exception ex)
+            catch
             {
-                //isExeption = true;
-                //Print(ex.Message);
+                return;
             }
         }
 
         private void OnKeyboardPressedMove(object sender,KeyEventArgs e)
         {
+            // TmpMoves can be deleted by using GameManager.keyMoves
             GameManager.MoveCell(e.KeyCode.ToString());
 
-            if (GameManager.TmpMoves != GameManager.Moves)
+            if (GameField.TmpMoves != GameField.Moves)
             {
-                lblMoves.Text = "Moves: " + GameManager.Moves;
-                Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
-                GameManager.TmpMoves = GameManager.Moves;
+                lblMoves.Text = "Moves: " + GameField.Moves;
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
+                GameField.TmpMoves = GameField.Moves;
             }
 
             if (GameManager.Check())
             {
                 Stop();
-                MessageBox.Show($"Finish.\nYour result : {GameManager.Moves}\nTime: {CurrentTime}");
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
+                MessageBox.Show($"Finish.\nYour result : {GameField.Moves}\nTime: {CurrentTime}");
             }
         }
 
@@ -307,7 +317,7 @@ namespace Barley_Break
                 RecreateAll(GameField.Size);
                 GenerateGameField();
                 GameManager.RandomizeCells();
-                Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
             }
         }
 
@@ -334,9 +344,10 @@ namespace Barley_Break
                 TimeThread.Start();
             }
 
-            GameManager.Moves = 0;
-            GameManager.TmpMoves = -1;
-            lblMoves.Text = "Moves: " + GameManager.Moves;
+            GameField.Moves = 0;
+            GameField.TmpMoves = -1;
+            lblMoves.Text = "Moves: " + GameField.Moves;
+            GameField.IsFinished = false;
 
             StartDateTime = DateTime.Now;
         }
@@ -348,14 +359,14 @@ namespace Barley_Break
             txtBName.Enabled = true;
             btnPlay.Visible = true;
             btnPlay.Enabled = true;
-            GameManager.Moves = 0;
-            GameManager.TmpMoves = -1;
+            GameField.Moves = 0;
+            GameField.TmpMoves = -1;
             StartDateTime = DateTime.Now;
 
             RecreateAll(GameField.Size);
 
             lblTime.Text = "Time: 0";
-            lblMoves.Text = "Moves: " + GameManager.Moves;
+            lblMoves.Text = "Moves: " + GameField.Moves;
         }
 
         private void Stop()
@@ -363,6 +374,7 @@ namespace Barley_Break
             txtBName.Enabled = true;
             btnPlay.Visible = true;
             btnPlay.Enabled = true;
+            GameField.IsFinished = true;
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -389,11 +401,11 @@ namespace Barley_Break
                 ClearTopScores();
                 GameManager.RandomizeCells();
 
-                GameManager.Moves = 0;
-                GameManager.TmpMoves = -1;
+                GameField.Moves = 0;
+                GameField.TmpMoves = -1;
                 StartDateTime = DateTime.Now;
-                lblMoves.Text = "Moves: " + GameManager.Moves;
-                Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
+                lblMoves.Text = "Moves: " + GameField.Moves;
+                Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
             }
         }
 
@@ -408,9 +420,7 @@ namespace Barley_Break
 
         private void changeLayoutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // Call function in gameManager to change layout
             var menuItem = sender as ToolStripMenuItem;
-
             if (menuItem == null) return;
 
             Start();
@@ -418,7 +428,7 @@ namespace Barley_Break
             if (btnPlay.Enabled) return;
 
             GameField.StartNumbers = menuItem.Text;
-            Client.SendPlayerData(GameField.StartNumbers, UserName, GameManager.Moves, CurrentTime);
+            Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
 
             List<int> numbers = menuItem.Text.Split(';').Where(x => x != string.Empty).Select(x => Convert.ToInt32(x)).ToList();
             numbers.Add(0);

@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data;
 
 namespace Barley_Break
 {
@@ -14,10 +15,12 @@ namespace Barley_Break
         private TcpClient tcpClient;
         private NetworkStream stream;
         private bool isConnected = false;
+        private string exception = string.Empty;
 
         public TcpClient TcpClient { get => tcpClient; set => tcpClient = value; }
         public NetworkStream Stream { get => stream; set => stream = value; }
         public bool IsConnected { get => isConnected; set => isConnected = value; }
+        public string Exception { get => exception; set => exception = value; }
 
         public void Connect(string host, string port)
         {
@@ -46,18 +49,18 @@ namespace Barley_Break
         }
 
         //метод, що відправляє нові результати
-        public async void SendPlayerData(string startNumbers, string userName, int moves, string time)
+        public async void SendPlayerData(string startNumbers, string userName, int moves, string time, string IsFinished)
         {
             try
             {
-                string playerData = startNumbers + "$" + userName + "~" + moves + "~" + time;
+                string playerData = startNumbers + "$" + userName + "~" + moves + "~" + time + "~" + IsFinished;
                 byte[] data = Encoding.UTF8.GetBytes(playerData + '\n');
                 await Stream.WriteAsync(data);
             }
-            catch
+            catch (Exception ex)
             {
-                //ClearTopScores();
-                //Print("Error: Send new player data");
+                Exception = "SendPlayerData: " + ex.Message;
+                IsConnected = false;
             }
         }
 
@@ -78,11 +81,23 @@ namespace Barley_Break
 
                 response.Clear();
             }
-            catch
+            catch(Exception ex)
             {
-                //ClearTopScores();
-                //Print("Error: Get scores");
+                Exception = "GetData: " + ex.Message;
+                IsConnected = false;
             }
+            return data;
+        }
+
+        public string GetClientException()
+        {
+            string data = "#clientException&";
+
+            if (string.IsNullOrEmpty(Exception)) return string.Empty;
+            
+            data += Exception;
+            Exception = string.Empty;
+
             return data;
         }
     }

@@ -15,19 +15,8 @@ namespace Barley_Break
         private string specialSymbols = " !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
         private GameField gameField = new GameField();
-        private int moves = 0;
-        private int tmpMoves = -1;
 
         public GameField GameField { get => gameField; }
-        public int Moves { get => moves; set => moves = value; }
-        public int TmpMoves { get => tmpMoves; set => tmpMoves = value; }
-
-        private Control.ControlCollection Controls; //Does not used. Review GameManager to static class.
-
-        public GameManager(Control.ControlCollection Controls)
-        {
-            this.Controls = Controls;
-        }
 
         public void RandomizeCells()
         {
@@ -62,7 +51,7 @@ namespace Barley_Break
                 MoveCell(keyMoves[2]);
             }
 
-            Moves = 0;
+            GameField.Moves = 0;
             GameField.StartNumbers = string.Empty;
             for (int i = 0; i < GameField.Size; i++)
             {
@@ -93,7 +82,7 @@ namespace Barley_Break
                             GameField.Cells[GameField.CurrentRowPos + 1, GameField.CurrentColPos].Location = new Point(GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.X, 
                                                                                                                        GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.Y - (GameField.CellSize + GameField.GapBetweenCells));
                             GameField.CurrentRowPos++;
-                            Moves++;
+                            GameField.Moves++;
                         }
                         break;
                     }
@@ -107,7 +96,7 @@ namespace Barley_Break
                             GameField.Cells[GameField.CurrentRowPos - 1, GameField.CurrentColPos].Location = new Point(GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.X, 
                                                                                                                        GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.Y + (GameField.CellSize + GameField.GapBetweenCells));
                             GameField.CurrentRowPos--;
-                            Moves++;
+                            GameField.Moves++;
                         }
                         break;
                     }
@@ -121,7 +110,7 @@ namespace Barley_Break
                             GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos + 1].Location = new Point(GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.X - (GameField.CellSize + GameField.GapBetweenCells), 
                                                                                                                        GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.Y);
                             GameField.CurrentColPos++;
-                            Moves++;
+                            GameField.Moves++;
                         }
                         break;
                     }
@@ -135,7 +124,7 @@ namespace Barley_Break
                             GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos - 1].Location = new Point(GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.X + (GameField.CellSize + GameField.GapBetweenCells), 
                                                                                                                        GameField.Cells[GameField.CurrentRowPos, GameField.CurrentColPos].Location.Y);
                             GameField.CurrentColPos--;
-                            Moves++;
+                            GameField.Moves++;
                         }
                         break;
                     }
