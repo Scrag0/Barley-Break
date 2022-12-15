@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -28,7 +26,7 @@ namespace Program
                 try
                 {
                     tcpListener.Start(); // запускає сервер
-                    Console.WriteLine("The server is running. Waiting for connection...");
+                    Console.WriteLine("The server is running.");
 
                     Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
                     List<TcpClient> clients = new List<TcpClient>();
@@ -46,8 +44,8 @@ namespace Program
                 }
             }
 
-            // метод на отримання та відповідь на повідомлення від клієна
-            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            // метод на отримання та відповідь на повідомлення від клієнта
+            private Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
                 var stream = tcpClient.GetStream();
 
@@ -57,6 +55,8 @@ namespace Program
                 Console.WriteLine($"{tcpClient.Client.RemoteEndPoint} connected");
                 try
                 {
+                    SendAllLayouts(GameHistory, clients);
+
                     while (true)
                     {
 
@@ -72,12 +72,17 @@ namespace Program
                             break;
                         }
 
-                        foreach (var item in GameHistory)
+                        if (GameHistory.Keys.Count == 11)
                         {
-                            item.Value.OrderBy(x => x[2]).OrderBy(x => x[1]);
-                            if (item.Value.Count == 10)
+                            GameHistory.Remove(GameHistory.Keys.First());
+                        }
+
+                        foreach (var item in GameHistory.Keys)
+                        {
+                            GameHistory[item] = GameHistory[item].Where(x => x[2] != "").OrderBy(x => TimeOnly.Parse(x[2])).ThenBy(x => x[1]).ToList();
+                            if (GameHistory[item].Count == 10)
                             {
-                                item.Value.RemoveAt(item.Value.Count);
+                                GameHistory[item].RemoveAt(GameHistory[item].Count);
                             }
                         }
 
@@ -85,12 +90,17 @@ namespace Program
                         string username = Data.Split('$')[1].Split('~')[0];
                         string moves = Data.Split('$')[1].Split('~')[1];
                         string time = Data.Split('$')[1].Split('~')[2];
+                        string isFinished = Data.Split('$')[1].Split('~')[3];
 
-                        string[] playerData = { username, moves, time };
+                        string[] playerData = { username, moves, time, isFinished };
 
                         if (!GameHistory.ContainsKey(startNumbers))
                         {
                             GameHistory.Add(startNumbers, new List<string[]>());
+                            Console.WriteLine($"New key: {startNumbers}");
+
+                            SendLayout(startNumbers, GameHistory, clients);
+
                             GameHistory[startNumbers].Add(playerData);
                         }
                         else
@@ -99,8 +109,18 @@ namespace Program
 
                             if (currentData != null)
                             {
-                                currentData[1] = moves;
-                                currentData[2] = time;
+                                if (currentData[3] == false.ToString())
+                                {
+                                    currentData[1] = moves;
+                                    currentData[2] = time;
+                                    currentData[3] = isFinished;
+                                }
+
+                                if (bool.Parse(isFinished) && TimeOnly.Parse(currentData[2]) >= TimeOnly.Parse(time) && int.Parse(currentData[1]) >= int.Parse(moves))
+                                {
+                                    currentData[1] = moves;
+                                    currentData[2] = time;
+                                }
                             }
 
                             if (currentData == null)
@@ -111,29 +131,14 @@ namespace Program
 
                         Console.WriteLine($"New data: {Data.Split('$')[1]}");
 
-                        string feedback = "";
-
-                        foreach (var data in GameHistory)
-                        {
-                            foreach (var item in data.Value)
-                            {
-                                feedback += data.Key + "$" + item[0] + "~" + item[1] + "~" + item[2] + "|";
-                            }
-                        }
-                        Console.WriteLine(feedback);
-                        feedback += "\n";
-
-                        foreach (var client in clients)
-                        {
-                            await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
-                        }
+                        SendTopScores(startNumbers, GameHistory, clients);
 
                         response.Clear();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("ProcessClientAsync: " + ex.Message);
                 }
                 finally
                 {
@@ -142,6 +147,77 @@ namespace Program
                     clients.Remove(tcpClient);
                     tcpClient.Close();
                     tcpClient.Dispose();
+                }
+                return Task.CompletedTask;
+            }
+
+            private async void SendTopScores(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                try
+                {
+                    string feedback = "#updateTopScores&";
+
+                    foreach (var item in GameHistory[layout])
+                    {
+                        feedback += layout + "$" + item[0] + "~" + item[1] + "~" + item[2] + "~" + item[3] + "|";
+                    }
+
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("SendTopScores: " + ex.Message);
+                }
+            }
+
+            private async void SendLayout(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                try
+                {
+                    string feedback = "#updateLayouts&";
+
+                    feedback += layout;
+
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("SendLayout: " + ex.Message);
+                }
+            }
+
+            private async void SendAllLayouts(Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            {
+                try
+                {
+                    string feedback = "#updateLayouts&";
+
+                    foreach (var layout in GameHistory.Keys)
+                    {
+                        feedback += layout + "|";
+                    }
+
+                    //Console.WriteLine(feedback);
+                    feedback += "\n";
+
+                    foreach (var client in clients)
+                    {
+                        await client.GetStream().WriteAsync(Encoding.UTF8.GetBytes(feedback));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("SendAllLayouts: " + ex.Message);
                 }
             }
         }
