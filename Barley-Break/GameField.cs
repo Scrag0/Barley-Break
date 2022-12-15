@@ -11,7 +11,7 @@ namespace Barley_Break
         private Label[,] numbers;
         private PictureBox[,] cells;
         private PictureBox[,] map;
-        private string startNumbers;
+        private string startNumbers = string.Empty;
         private bool isFinished = false;
 
         private Color basicCellColor = Color.Orange;
@@ -37,6 +37,16 @@ namespace Barley_Break
 
         private int moves = 0;
         private int tmpMoves = -1;
+
+        public GameField()
+        {
+            Numbers = new Label[Size, Size];
+            Cells = new PictureBox[Size, Size];
+            Map = new PictureBox[Size, Size];
+
+            CurrentRowPos = Size - 1;
+            CurrentColPos = Size - 1;
+        }
 
         public Label[,] Numbers { get => numbers; set => numbers = value; }
         public PictureBox[,] Cells { get => cells; set => cells = value; }

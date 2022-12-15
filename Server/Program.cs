@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -28,7 +26,7 @@ namespace Program
                 try
                 {
                     tcpListener.Start(); // запускає сервер
-                    Console.WriteLine("The server is running. Waiting for connection...");
+                    Console.WriteLine("The server is running.");
 
                     Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
                     List<TcpClient> clients = new List<TcpClient>();
@@ -46,8 +44,8 @@ namespace Program
                 }
             }
 
-            // метод на отримання та відповідь на повідомлення від клієна
-            async Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
+            // метод на отримання та відповідь на повідомлення від клієнта
+            private Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
                 var stream = tcpClient.GetStream();
 
@@ -73,7 +71,7 @@ namespace Program
                         {
                             break;
                         }
-                        
+
                         if (GameHistory.Keys.Count == 11)
                         {
                             GameHistory.Remove(GameHistory.Keys.First());
@@ -99,6 +97,7 @@ namespace Program
                         if (!GameHistory.ContainsKey(startNumbers))
                         {
                             GameHistory.Add(startNumbers, new List<string[]>());
+                            Console.WriteLine($"New key: {startNumbers}");
 
                             SendLayout(startNumbers, GameHistory, clients);
 
@@ -149,6 +148,7 @@ namespace Program
                     tcpClient.Close();
                     tcpClient.Dispose();
                 }
+                return Task.CompletedTask;
             }
 
             private async void SendTopScores(string layout, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)

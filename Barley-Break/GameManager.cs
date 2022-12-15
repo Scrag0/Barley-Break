@@ -146,6 +146,7 @@ namespace Barley_Break
 
         public bool IsCorrect(int rowPos, int colPos)
         {
+            if (!IsInRange(rowPos, colPos)) return false;
             int value = Convert.ToInt32(GameField.Numbers[rowPos, colPos].Text);
             if ((rowPos * GameField.Size + colPos) + 1 == value) return true;
 
@@ -179,6 +180,39 @@ namespace Barley_Break
         {
             if (rowPos == GameField.Size - 1 && colPos == GameField.Size - 1) return true;
             return false;
+        }
+
+        private void DeleteAll()
+        {
+            foreach (var item in GameField.Map)
+            {
+                if (item != null) item.Dispose();
+            }
+
+            for (int i = 0; i < GameField.Size; i++)
+            {
+                for (int j = 0; j < GameField.Size; j++)
+                {
+                    if (GameField.CurrentRowPos == i && GameField.CurrentColPos == j) continue;
+
+                    if (GameField.Cells[i, j] != null) GameField.Cells[i, j].Dispose();
+                    if (GameField.Numbers[i, j] != null) GameField.Numbers[i, j].Dispose();
+                }
+            }
+        }
+
+        public void RecreateAll(int newGameFieldSize)
+        {
+            DeleteAll();
+
+            GameField.Size = newGameFieldSize;
+
+            GameField.Numbers = new Label[GameField.Size, GameField.Size];
+            GameField.Cells = new PictureBox[GameField.Size, GameField.Size];
+            GameField.Map = new PictureBox[GameField.Size, GameField.Size];
+
+            GameField.CurrentRowPos = GameField.Size - 1;
+            GameField.CurrentColPos = GameField.Size - 1;
         }
     }
 }

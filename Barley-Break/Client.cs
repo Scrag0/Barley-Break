@@ -17,10 +17,15 @@ namespace Barley_Break
         private bool isConnected = false;
         private string exception = string.Empty;
 
-        public TcpClient TcpClient { get => tcpClient; set => tcpClient = value; }
-        public NetworkStream Stream { get => stream; set => stream = value; }
+        public TcpClient TcpClient { get => tcpClient; }
+        public NetworkStream Stream { get => stream; }
         public bool IsConnected { get => isConnected; set => isConnected = value; }
         public string Exception { get => exception; set => exception = value; }
+
+        public Client()
+        {
+            tcpClient = new TcpClient();
+        }
 
         public void Connect(string host, string port)
         {
