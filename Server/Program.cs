@@ -8,9 +8,8 @@ namespace Program
     {
         static void Main(string[] args)
         {
-            //підключення до заданої в консолі Ip-адреси з портом
             var tcpListener = new TcpListener(IPAddress.Parse(args[0]), int.Parse(args[1]));
-            Server server = new Server(tcpListener); // створення екземпляра сервера
+            Server server = new Server(tcpListener);
         }
 
         public class Server
@@ -20,12 +19,11 @@ namespace Program
                 this.Work(tcpListener);
             }
 
-            //підключення нових TCP клієнтів та запуск методу ProcessClientAsync
             public void Work(TcpListener tcpListener)
             {
                 try
                 {
-                    tcpListener.Start(); // запускає сервер
+                    tcpListener.Start();
                     Console.WriteLine("The server is running.");
 
                     Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
@@ -33,9 +31,9 @@ namespace Program
 
                     while (true)
                     {
-                        var tcpClient = tcpListener.AcceptTcpClient(); // приймаємо запит на підключення від TcpClient
+                        var tcpClient = tcpListener.AcceptTcpClient(); 
                         clients.Add(tcpClient);
-                        new Thread(async () => await ProcessClientAsync(tcpClient, GameHistory, clients)).Start(); // створюємо потік для отримання і відповіді на повідомленя від TcpClient
+                        new Thread(async () => await ProcessClientAsync(tcpClient, GameHistory, clients)).Start();
                     }
                 }
                 finally
@@ -44,12 +42,11 @@ namespace Program
                 }
             }
 
-            // метод на отримання та відповідь на повідомлення від клієнта
             private Task ProcessClientAsync(TcpClient tcpClient, Dictionary<string, List<string[]>> GameHistory, List<TcpClient> clients)
             {
                 var stream = tcpClient.GetStream();
 
-                var response = new List<byte>(); // буфер для вхідних даних
+                var response = new List<byte>();
                 int bytesRead = 10;
 
                 Console.WriteLine($"{tcpClient.Client.RemoteEndPoint} connected");
@@ -60,9 +57,9 @@ namespace Program
                     while (true)
                     {
 
-                        while ((bytesRead = stream.ReadByte()) != '\n') // зчитуємо дані до кінцевого символу
+                        while ((bytesRead = stream.ReadByte()) != '\n')
                         {
-                            response.Add((byte)bytesRead); // додаємо в буфер
+                            response.Add((byte)bytesRead);
                         }
 
                         var Data = Encoding.UTF8.GetString(response.ToArray());
@@ -207,7 +204,6 @@ namespace Program
                         feedback += layout + "|";
                     }
 
-                    //Console.WriteLine(feedback);
                     feedback += "\n";
 
                     foreach (var client in clients)
