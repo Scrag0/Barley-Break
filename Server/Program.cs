@@ -24,7 +24,7 @@ namespace Program
                 try
                 {
                     tcpListener.Start();
-                    Console.WriteLine("The server is running.");
+                    Console.WriteLine("The server is running...");
 
                     Dictionary<string, List<string[]>> GameHistory = new Dictionary<string, List<string[]>>();
                     List<TcpClient> clients = new List<TcpClient>();
@@ -79,7 +79,7 @@ namespace Program
                             GameHistory[item] = GameHistory[item].Where(x => x[2] != "").OrderBy(x => TimeOnly.Parse(x[2])).ThenBy(x => x[1]).ToList();
                             if (GameHistory[item].Count == 10)
                             {
-                                GameHistory[item].RemoveAt(GameHistory[item].Count);
+                                GameHistory[item].RemoveAt(GameHistory[item].Count - 1);
                             }
                         }
 

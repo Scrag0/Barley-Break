@@ -167,6 +167,7 @@ namespace Barley_Break
                     try
                     {
                         if (string.IsNullOrEmpty(playerData)) continue;
+                        if (playerData.Split('~').Length < 4) continue;
                         Print(playerData.Split('~')[0] + ". Moves:" + playerData.Split('~')[1] + " Time:" + playerData.Split('~')[2], bool.Parse(playerData.Split('~')[3]));
                     }
                     catch
@@ -289,7 +290,7 @@ namespace Barley_Break
             {
                 Stop();
                 Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());
-                MessageBox.Show($"Finish.\nYour result : {GameField.Moves}\nTime: {CurrentTime}");
+                MessageBox.Show($"Finish.\nYour result: {GameField.Moves}\nTime: {CurrentTime}");
             }
         }
 
@@ -332,7 +333,7 @@ namespace Barley_Break
             }
 
             GameField.Moves = 0;
-            GameField.TmpMoves = -1;
+            GameField.TmpMoves = 0;
             lblMoves.Text = "Moves: " + GameField.Moves;
             GameField.IsFinished = false;
 
@@ -347,7 +348,7 @@ namespace Barley_Break
             btnPlay.Visible = true;
             btnPlay.Enabled = true;
             GameField.Moves = 0;
-            GameField.TmpMoves = -1;
+            GameField.TmpMoves = 0;
             StartDateTime = DateTime.Now;
 
             GameManager.RecreateAll(GameField.Size);
@@ -391,7 +392,7 @@ namespace Barley_Break
                 GameManager.RandomizeCells();
 
                 GameField.Moves = 0;
-                GameField.TmpMoves = -1;
+                GameField.TmpMoves = 0;
                 StartDateTime = DateTime.Now;
                 lblMoves.Text = "Moves: " + GameField.Moves;
                 Client.SendPlayerData(GameField.StartNumbers, UserName, GameField.Moves, CurrentTime, GameField.IsFinished.ToString());

@@ -41,7 +41,6 @@ namespace Barley_Break
             }
         }
 
-        //метод, що від'єднує користувача з сервером
         public void Disconnect()
         {
             if (IsConnected)
@@ -53,7 +52,6 @@ namespace Barley_Break
             }
         }
 
-        //метод, що відправляє нові результати
         public async void SendPlayerData(string startNumbers, string userName, int moves, string time, string IsFinished)
         {
             try
@@ -69,7 +67,6 @@ namespace Barley_Break
             }
         }
 
-        //метод, що отримує поточні результати гравців від сервера
         public string GetData()
         {
             string data = string.Empty;
