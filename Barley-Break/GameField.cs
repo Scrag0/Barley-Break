@@ -36,7 +36,7 @@ namespace Barley_Break
         private int currentColPos;
 
         private int moves = 0;
-        private int tmpMoves = -1;
+        private int tmpMoves = 0;
 
         public GameField()
         {

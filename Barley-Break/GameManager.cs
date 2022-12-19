@@ -28,12 +28,12 @@ namespace Barley_Break
             for (int i = 0; i < GameField.Size * GameField.RandomSteps; i++)
             {
                 bool isMoved = false;
+                tempRowPos = GameField.CurrentRowPos;
+                tempColPos = GameField.CurrentColPos;
 
                 while (!isMoved)
                 {
                     temp = rand.Next(0, keyMoves.Length);
-                    tempRowPos = GameField.CurrentRowPos;
-                    tempColPos = GameField.CurrentColPos;
 
                     MoveCell(keyMoves[temp]);
 
